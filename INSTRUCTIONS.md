@@ -2,7 +2,7 @@
 
 ## 🚀 One Command Setup
 
-Saya telah membuat script lengkap yang bisa langsung dijalankan dengan **satu perintah** untuk membuat installer Nautica Proxy Server dan push ke GitHub.
+Saya telah membuat script lengkap yang bisa langsung dijalankan dengan **satu perintah** untuk membuat installer Nautica Proxy Server dan push ke repository GitHub Anda.
 
 ### Langkah 1: Jalankan Script Setup
 
@@ -11,16 +11,13 @@ Saya telah membuat script lengkap yang bisa langsung dijalankan dengan **satu pe
 sudo bash setup-and-push.sh
 ```
 
-### Langkah 2: Masukkan GitHub Username
-
-Script akan meminta Anda memasukkan GitHub username Anda.
-
-### Langkah 3: Otomatis Push ke GitHub
+### Langkah 2: Otomatis Push ke GitHub
 
 Script akan otomatis:
+- ✅ Menggunakan repository: https://github.com/Ninadiantea/modevps
 - ✅ Membuat semua file installer
 - ✅ Membuat README.md lengkap
-- ✅ Push ke repository GitHub baru
+- ✅ Push ke repository GitHub
 - ✅ Memberikan URL installer siap pakai
 
 ## 📋 Hasil Akhir
@@ -29,21 +26,20 @@ Setelah script selesai, Anda akan mendapatkan:
 
 ### Repository GitHub
 ```
-https://github.com/YOUR_USERNAME/nautica-proxy-vps
+https://github.com/Ninadiantea/modevps
 ```
 
 ### One Command Installation URL
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/nautica-proxy-vps/main/install-nautica.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Ninadiantea/modevps/main/install-nautica.sh | sudo bash
 ```
 
 ## 🎯 Cara Penggunaan
 
 ### Untuk Anda (Developer)
 1. Jalankan `sudo bash setup-and-push.sh`
-2. Masukkan GitHub username
-3. Script otomatis push ke GitHub
-4. Dapatkan URL installer
+2. Script otomatis push ke repository Anda
+3. Dapatkan URL installer
 
 ### Untuk User (End User)
 1. Copy URL installer yang Anda dapatkan
@@ -132,26 +128,24 @@ curl "https://yourdomain.com/api/v1/sub?cc=SG&limit=5"
 ```
 1. Developer: sudo bash setup-and-push.sh
    ↓
-2. Masukkan GitHub username
+2. Otomatis push ke https://github.com/Ninadiantea/modevps
    ↓
-3. Script otomatis push ke GitHub
+3. Dapatkan URL installer
    ↓
-4. Dapatkan URL installer
+4. Share URL dengan user
    ↓
-5. Share URL dengan user
+5. User: curl -fsSL URL | sudo bash
    ↓
-6. User: curl -fsSL URL | sudo bash
+6. Masukkan domain
    ↓
-7. Masukkan domain
-   ↓
-8. Server otomatis running
+7. Server otomatis running
 ```
 
 ## 🎉 Keunggulan
 
 ### Untuk Developer
 - ✅ **Satu perintah** untuk setup semuanya
-- ✅ **Otomatis push** ke GitHub
+- ✅ **Otomatis push** ke repository Anda
 - ✅ **URL installer** siap pakai
 - ✅ **Dokumentasi lengkap** otomatis dibuat
 
@@ -192,3 +186,7 @@ Dengan script ini, Anda bisa:
 4. **Server running** otomatis dengan semua fitur
 
 **Sangat mudah dan user-friendly!** 🚀
+
+---
+
+**Repository: https://github.com/Ninadiantea/modevps**

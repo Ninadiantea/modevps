@@ -20,12 +20,9 @@ Saya telah membuat **script lengkap** untuk mengkonversi file `_worker.js` (Clou
 sudo bash setup-and-push.sh
 ```
 
-### Langkah 2: Masukkan GitHub Username
-Script akan meminta GitHub username Anda.
-
-### Langkah 3: Otomatis Push ke GitHub
+### Langkah 2: Otomatis Push ke GitHub
 Script akan otomatis:
-- ✅ Membuat repository GitHub baru
+- ✅ Menggunakan repository GitHub Anda: https://github.com/Ninadiantea/modevps
 - ✅ Push semua file installer
 - ✅ Membuat README.md lengkap
 - ✅ Memberikan URL installer siap pakai
@@ -36,12 +33,12 @@ Setelah script selesai, Anda akan mendapatkan:
 
 ### Repository GitHub
 ```
-https://github.com/YOUR_USERNAME/nautica-proxy-vps
+https://github.com/Ninadiantea/modevps
 ```
 
 ### One Command Installation URL
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/nautica-proxy-vps/main/install-nautica.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Ninadiantea/modevps/main/install-nautica.sh | sudo bash
 ```
 
 ## 🔧 Fitur Lengkap
@@ -85,26 +82,24 @@ curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/nautica-proxy-vps/mai
 ```
 1. Developer: sudo bash setup-and-push.sh
    ↓
-2. Masukkan GitHub username
+2. Otomatis push ke https://github.com/Ninadiantea/modevps
    ↓
-3. Otomatis push ke GitHub
+3. Dapatkan URL installer
    ↓
-4. Dapatkan URL installer
+4. Share dengan user
    ↓
-5. Share dengan user
+5. User: curl -fsSL URL | sudo bash
    ↓
-6. User: curl -fsSL URL | sudo bash
+6. Masukkan domain
    ↓
-7. Masukkan domain
-   ↓
-8. Server running otomatis
+7. Server running otomatis
 ```
 
 ## 🎉 Keunggulan
 
 ### Untuk Developer
 - ✅ **Satu perintah** setup semuanya
-- ✅ **Otomatis push** ke GitHub
+- ✅ **Otomatis push** ke repository Anda
 - ✅ **URL installer** siap pakai
 - ✅ **Dokumentasi lengkap**
 
@@ -140,7 +135,7 @@ Jika ada masalah:
 
 **Sekarang Anda memiliki:**
 1. ✅ Script installer lengkap
-2. ✅ Setup otomatis ke GitHub
+2. ✅ Setup otomatis ke repository Anda
 3. ✅ URL installer siap pakai
 4. ✅ Dokumentasi lengkap
 5. ✅ Support sama dengan Cloudflare Workers
@@ -155,3 +150,4 @@ sudo bash setup-and-push.sh
 ---
 
 **Status: ✅ READY TO USE**
+**Repository: https://github.com/Ninadiantea/modevps**

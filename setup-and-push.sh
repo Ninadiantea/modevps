@@ -50,39 +50,36 @@ check_git() {
     fi
 }
 
-# Get GitHub username
-get_github_username() {
-    echo ""
-    print_status "GitHub Configuration"
-    echo "======================"
+# Setup existing repository
+setup_repository() {
+    print_status "Setting up existing GitHub repository..."
     
-    read -p "Enter your GitHub username: " GITHUB_USERNAME
-    
-    if [ -z "$GITHUB_USERNAME" ]; then
-        print_error "GitHub username is required"
-        exit 1
+    # Remove existing git if any
+    if [ -d ".git" ]; then
+        rm -rf .git
+        print_status "Removed existing git repository"
     fi
     
-    echo ""
-    print_status "GitHub username: $GITHUB_USERNAME"
-    echo ""
+    # Initialize new git repository
+    git init
+    print_status "Git repository initialized"
     
-    read -p "Is this correct? (y/n): " CONFIRM
-    if [ "$CONFIRM" != "y" ]; then
-        print_error "Setup cancelled"
-        exit 1
-    fi
-}
-
-# Initialize git repository
-init_repo() {
-    print_status "Initializing git repository..."
+    # Add remote repository
+    git remote add origin https://github.com/Ninadiantea/modevps.git
+    print_status "Remote repository added: https://github.com/Ninadiantea/modevps.git"
     
-    if [ ! -d ".git" ]; then
-        git init
-        print_status "Git repository initialized"
+    # Fetch existing content
+    git fetch origin
+    print_status "Fetched existing repository content"
+    
+    # Check if main branch exists
+    if git ls-remote --heads origin main | grep -q main; then
+        git checkout -b main origin/main
+        print_status "Switched to main branch"
     else
-        print_status "Git repository already exists"
+        # Create main branch if it doesn't exist
+        git checkout -b main
+        print_status "Created main branch"
     fi
 }
 
@@ -102,7 +99,7 @@ create_files() {
 # Create README.md
 create_readme() {
     print_status "Creating README.md..."
-    cat > README.md << EOF
+    cat > README.md << 'EOF'
 # Nautica Proxy Server - VPS Ubuntu Installer
 
 A complete implementation of Nautica Proxy Server for VPS Ubuntu, providing the same functionality as the original Cloudflare Workers version.
@@ -124,31 +121,31 @@ A complete implementation of Nautica Proxy Server for VPS Ubuntu, providing the 
 
 ### One Command Installation
 
-\`\`\`bash
+```bash
 # Download and run installer
-curl -fsSL https://raw.githubusercontent.com/$GITHUB_USERNAME/nautica-proxy-vps/main/install-nautica.sh | sudo bash
-\`\`\`
+curl -fsSL https://raw.githubusercontent.com/Ninadiantea/modevps/main/install-nautica.sh | sudo bash
+```
 
 ### Manual Installation
 
-\`\`\`bash
+```bash
 # Clone repository
-git clone https://github.com/$GITHUB_USERNAME/nautica-proxy-vps.git
-cd nautica-proxy-vps
+git clone https://github.com/Ninadiantea/modevps.git
+cd modevps
 
 # Run installer
 sudo bash install-nautica.sh
-\`\`\`
+```
 
 ## Usage
 
 ### Web Interface
-- **Subscription Page**: \`https://yourdomain.com/sub\`
-- **API Endpoint**: \`https://yourdomain.com/api/v1/sub\`
-- **Health Check**: \`https://yourdomain.com/check\`
+- **Subscription Page**: `https://yourdomain.com/sub`
+- **API Endpoint**: `https://yourdomain.com/api/v1/sub`
+- **Health Check**: `https://yourdomain.com/check`
 
 ### Management Commands
-\`\`\`bash
+```bash
 # Start service
 /opt/nautica-proxy/manage.sh start
 
@@ -166,7 +163,7 @@ sudo bash install-nautica.sh
 
 # Monitor resources
 /opt/nautica-proxy/manage.sh monit
-\`\`\`
+```
 
 ## Configuration
 
@@ -176,18 +173,18 @@ The installer will prompt you for:
 
 ### Environment Variables
 
-Key configuration in \`/opt/nautica-proxy/.env\`:
-\`\`\`bash
+Key configuration in `/opt/nautica-proxy/.env`:
+```bash
 ROOT_DOMAIN=yourdomain.com
 SERVICE_NAME=nautica
 APP_DOMAIN=nautica.yourdomain.com
 PROXY_BANK_URL=https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/proxyList.txt
-\`\`\`
+```
 
 ## API Usage
 
 ### Get Subscription Configurations
-\`\`\`bash
+```bash
 # Get raw configurations
 curl "https://yourdomain.com/api/v1/sub?format=raw&limit=10"
 
@@ -196,20 +193,20 @@ curl "https://yourdomain.com/api/v1/sub?format=clash&cc=SG,US"
 
 # Filter by country
 curl "https://yourdomain.com/api/v1/sub?cc=SG&limit=5"
-\`\`\`
+```
 
 ### Health Check
-\`\`\`bash
+```bash
 curl "https://yourdomain.com/check?target=1.1.1.1:443"
-\`\`\`
+```
 
 ## Architecture
 
-\`\`\`
+```
 Client → VPS Ubuntu → Proxy Server (from GitHub)
    ↓         ↓              ↓
 WebSocket → Node.js → TCP/UDP Connection
-\`\`\`
+```
 
 ## Requirements
 
@@ -221,7 +218,7 @@ WebSocket → Node.js → TCP/UDP Connection
 
 ## Installation Directory
 
-\`\`\`
+```
 /opt/nautica-proxy/
 ├── src/
 │   ├── server.js
@@ -235,37 +232,37 @@ WebSocket → Node.js → TCP/UDP Connection
 ├── package.json
 ├── ecosystem.config.js
 └── manage.sh
-\`\`\`
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **SSL Certificate Failed**
-   \`\`\`bash
+   ```bash
    # Manual SSL setup
    certbot --nginx -d yourdomain.com
-   \`\`\`
+   ```
 
 2. **Service Not Starting**
-   \`\`\`bash
+   ```bash
    # Check logs
    /opt/nautica-proxy/manage.sh logs
    
    # Check PM2 status
    pm2 status
-   \`\`\`
+   ```
 
 3. **Proxy List Not Loading**
-   \`\`\`bash
+   ```bash
    # Check network connectivity
    curl https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/proxyList.txt
-   \`\`\`
+   ```
 
 ### Logs Location
-- **Application Logs**: \`/opt/nautica-proxy/logs/\`
-- **Nginx Logs**: \`/var/log/nginx/\`
-- **PM2 Logs**: \`pm2 logs nautica-proxy\`
+- **Application Logs**: `/opt/nautica-proxy/logs/`
+- **Nginx Logs**: `/var/log/nginx/`
+- **PM2 Logs**: `pm2 logs nautica-proxy`
 
 ## Security
 
@@ -373,7 +370,7 @@ add_files() {
 # Commit changes
 commit_changes() {
     print_status "Committing changes..."
-    git commit -m "Initial commit: Nautica Proxy Server VPS installer
+    git commit -m "Add Nautica Proxy Server VPS installer
 
 - Complete Node.js implementation
 - One-command installation script
@@ -389,27 +386,11 @@ commit_changes() {
     print_status "Changes committed"
 }
 
-# Add remote repository
-add_remote() {
-    print_status "Adding remote repository..."
-    
-    # Add remote
-    git remote add origin https://github.com/$GITHUB_USERNAME/nautica-proxy-vps.git
-    
-    print_status "Remote repository added: https://github.com/$GITHUB_USERNAME/nautica-proxy-vps.git"
-}
-
 # Push to GitHub
 push_to_github() {
     print_status "Pushing to GitHub..."
     
-    # Check if remote exists
-    if ! git remote get-url origin &> /dev/null; then
-        add_remote
-    fi
-    
     # Push to main branch
-    git branch -M main
     git push -u origin main
     
     print_status "Successfully pushed to GitHub!"
@@ -421,19 +402,19 @@ show_final_info() {
     print_status "🎉 Setup and push completed successfully!"
     echo ""
     echo "📋 Repository Information:"
-    echo "   URL: https://github.com/$GITHUB_USERNAME/nautica-proxy-vps"
+    echo "   URL: https://github.com/Ninadiantea/modevps"
     echo "   Branch: main"
     echo ""
     echo "🔗 Installation URLs:"
-    echo "   Raw Installer: https://raw.githubusercontent.com/$GITHUB_USERNAME/nautica-proxy-vps/main/install-nautica.sh"
-    echo "   One Command: curl -fsSL https://raw.githubusercontent.com/$GITHUB_USERNAME/nautica-proxy-vps/main/install-nautica.sh | sudo bash"
+    echo "   Raw Installer: https://raw.githubusercontent.com/Ninadiantea/modevps/main/install-nautica.sh"
+    echo "   One Command: curl -fsSL https://raw.githubusercontent.com/Ninadiantea/modevps/main/install-nautica.sh | sudo bash"
     echo ""
     echo "📖 Documentation:"
-    echo "   README: https://github.com/$GITHUB_USERNAME/nautica-proxy-vps#readme"
+    echo "   README: https://github.com/Ninadiantea/modevps#readme"
     echo ""
     echo "🚀 Next Steps:"
     echo "   1. Share the one-command installation URL with users"
-    echo "   2. Users can install with: curl -fsSL https://raw.githubusercontent.com/$GITHUB_USERNAME/nautica-proxy-vps/main/install-nautica.sh | sudo bash"
+    echo "   2. Users can install with: curl -fsSL https://raw.githubusercontent.com/Ninadiantea/modevps/main/install-nautica.sh | sudo bash"
     echo "   3. The installer will prompt for domain configuration"
     echo "   4. Everything will be set up automatically"
     echo ""
@@ -445,8 +426,7 @@ main() {
     print_header
     check_root
     check_git
-    get_github_username
-    init_repo
+    setup_repository
     create_files
     create_readme
     create_gitignore
