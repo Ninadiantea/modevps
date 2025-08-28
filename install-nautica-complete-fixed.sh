@@ -2,7 +2,7 @@
 
 # Nautica Proxy Server - Complete Installer (FIXED)
 # Author: AI Assistant
-# Version: 2.1 - Fixed Input Handling
+# Version: 2.2 - With Proxy Selection
 
 # Colors
 GREEN='\033[0;32m'
@@ -79,7 +79,7 @@ echo -e "${BLUE}📦 Creating package.json...${NC}"
 cat > package.json << 'EOF'
 {
   "name": "nautica-proxy-server",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "Nautica Proxy Server with Web Dashboard",
   "main": "server.js",
   "scripts": {
@@ -104,8 +104,8 @@ cat > package.json << 'EOF'
 }
 EOF
 
-# Create server.js
-echo -e "${BLUE}📄 Creating server.js...${NC}"
+# Create server.js with proxy functionality
+echo -e "${BLUE}📄 Creating server.js with proxy selection...${NC}"
 cat > server.js << 'EOF'
 const express = require('express');
 const cors = require('cors');
@@ -124,6 +124,7 @@ app.use(express.static('public'));
 
 // In-memory storage for accounts
 let accounts = [];
+let proxyList = [];
 
 // Load existing accounts
 const accountsFile = path.join(__dirname, 'accounts', 'accounts.json');
@@ -146,26 +147,109 @@ function saveAccounts() {
     fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2));
 }
 
-// Generate configuration
-function generateConfig(type, name, domain) {
-    const id = uuidv4();
-    const port = type === 'vless' ? 443 : 8443;
+// Fetch proxy list from GitHub
+async function fetchProxyList() {
+    try {
+        // Try multiple proxy sources
+        const proxySources = [
+            'https://raw.githubusercontent.com/Ninadiantea/modevps/main/kvProxyList.json',
+            'https://raw.githubusercontent.com/Ninadiantea/modevps/main/proxyList.txt',
+            'https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/sub/sub_merge.txt',
+            'https://raw.githubusercontent.com/freefq/free/master/v2'
+        ];
+
+        for (const source of proxySources) {
+            try {
+                const response = await axios.get(source, { timeout: 10000 });
+                if (response.data) {
+                    console.log(`✅ Proxy list loaded from: ${source}`);
+                    
+                    // Parse different formats
+                    if (source.includes('.json')) {
+                        proxyList = response.data;
+                    } else {
+                        // Parse text format
+                        const lines = response.data.split('\n').filter(line => line.trim());
+                        proxyList = lines.map((line, index) => ({
+                            id: index + 1,
+                            name: `Proxy ${index + 1}`,
+                            config: line.trim(),
+                            type: line.includes('vless://') ? 'vless' : 
+                                  line.includes('trojan://') ? 'trojan' : 
+                                  line.includes('ss://') ? 'shadowsocks' : 'unknown'
+                        }));
+                    }
+                    
+                    if (proxyList.length > 0) {
+                        console.log(`📊 Loaded ${proxyList.length} proxies`);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log(`❌ Failed to load from ${source}: ${error.message}`);
+                continue;
+            }
+        }
+        
+        // Fallback: create sample proxies
+        console.log('⚠️ Using fallback proxy list');
+        proxyList = [
+            {
+                id: 1,
+                name: 'Sample VLESS Proxy',
+                type: 'vless',
+                config: 'vless://sample-uuid@proxy.example.com:443?type=ws&security=tls&path=/ws#Sample'
+            },
+            {
+                id: 2,
+                name: 'Sample Trojan Proxy',
+                type: 'trojan',
+                config: 'trojan://sample-password@proxy.example.com:443?security=tls&type=ws&path=/ws#Sample'
+            }
+        ];
+        
+    } catch (error) {
+        console.error('Error fetching proxy list:', error);
+        proxyList = [];
+    }
+}
+
+// Generate configuration from proxy
+function generateConfigFromProxy(proxyId, name, domain) {
+    const proxy = proxyList.find(p => p.id == proxyId);
+    if (!proxy) {
+        throw new Error('Proxy not found');
+    }
     
-    if (type === 'vless') {
+    const id = uuidv4();
+    const port = proxy.type === 'vless' ? 443 : 8443;
+    
+    if (proxy.type === 'vless') {
         return {
             id,
             name,
             type: 'vless',
+            proxyName: proxy.name,
             config: `vless://${id}@${domain}:${port}?type=ws&security=tls&path=/ws#${name}`,
             subscription: `vless://${id}@${domain}:${port}?type=ws&security=tls&path=/ws#${name}`
         };
-    } else if (type === 'trojan') {
+    } else if (proxy.type === 'trojan') {
         return {
             id,
             name,
             type: 'trojan',
+            proxyName: proxy.name,
             config: `trojan://${id}@${domain}:${port}?security=tls&type=ws&path=/ws#${name}`,
             subscription: `trojan://${id}@${domain}:${port}?security=tls&type=ws&path=/ws#${name}`
+        };
+    } else if (proxy.type === 'shadowsocks') {
+        return {
+            id,
+            name,
+            type: 'shadowsocks',
+            proxyName: proxy.name,
+            config: `ss://${id}@${domain}:${port}#${name}`,
+            subscription: `ss://${id}@${domain}:${port}#${name}`
         };
     }
 }
@@ -195,38 +279,47 @@ app.get('/api/v1/accounts', (req, res) => {
         stats: {
             total: accounts.length,
             vless: accounts.filter(a => a.type === 'vless').length,
-            trojan: accounts.filter(a => a.type === 'trojan').length
+            trojan: accounts.filter(a => a.type === 'trojan').length,
+            shadowsocks: accounts.filter(a => a.type === 'shadowsocks').length
         }
     });
 });
 
-app.post('/api/v1/accounts', (req, res) => {
-    const { name, type } = req.body;
-    const domain = process.env.DOMAIN || 'localhost';
-    
-    if (!name || !type) {
-        return res.status(400).json({
-            success: false,
-            message: 'Name and type are required'
-        });
-    }
-    
-    if (!['vless', 'trojan'].includes(type)) {
-        return res.status(400).json({
-            success: false,
-            message: 'Type must be vless or trojan'
-        });
-    }
-    
-    const config = generateConfig(type, name, domain);
-    accounts.push(config);
-    saveAccounts();
-    
+app.get('/api/v1/proxies', (req, res) => {
     res.json({
         success: true,
-        message: 'Account created successfully',
-        data: config
+        data: proxyList,
+        total: proxyList.length
     });
+});
+
+app.post('/api/v1/accounts', (req, res) => {
+    const { name, proxyId } = req.body;
+    const domain = process.env.DOMAIN || 'localhost';
+    
+    if (!name || !proxyId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Name and proxy selection are required'
+        });
+    }
+    
+    try {
+        const config = generateConfigFromProxy(proxyId, name, domain);
+        accounts.push(config);
+        saveAccounts();
+        
+        res.json({
+            success: true,
+            message: 'Account created successfully',
+            data: config
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
 });
 
 app.delete('/api/v1/accounts/:id', (req, res) => {
@@ -255,19 +348,24 @@ app.get('/health', (req, res) => {
         status: 'running',
         domain: process.env.DOMAIN || 'localhost',
         port: PORT,
-        accounts: accounts.length
+        accounts: accounts.length,
+        proxies: proxyList.length
     });
 });
+
+// Initialize proxy list on startup
+fetchProxyList();
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌐 Domain: ${process.env.DOMAIN || 'localhost'}`);
     console.log(`📊 Total accounts: ${accounts.length}`);
+    console.log(`🔗 Loading proxy list...`);
 });
 EOF
 
-# Create public directory and index.html
-echo -e "${BLUE}📄 Creating web dashboard...${NC}"
+# Create public directory and updated index.html
+echo -e "${BLUE}📄 Creating web dashboard with proxy selection...${NC}"
 mkdir -p public
 
 cat > public/index.html << 'EOF'
@@ -299,6 +397,17 @@ cat > public/index.html << 'EOF'
         .delete-btn:hover {
             background-color: #dc2626;
         }
+        .proxy-card {
+            transition: all 0.3s ease;
+        }
+        .proxy-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .proxy-card.selected {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -308,7 +417,7 @@ cat > public/index.html << 'EOF'
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-3xl font-bold">🌊 Nautica Proxy Server</h1>
-                    <p class="text-blue-100 mt-2">Complete Proxy Management Dashboard</p>
+                    <p class="text-blue-100 mt-2">Proxy Selection & Account Management</p>
                 </div>
                 <div class="text-right">
                     <div class="text-2xl font-bold" id="totalAccounts">0</div>
@@ -320,7 +429,7 @@ cat > public/index.html << 'EOF'
 
     <!-- Stats Cards -->
     <div class="container mx-auto px-6 -mt-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-lg shadow-md p-6 card-hover">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-blue-100 text-blue-600">
@@ -354,12 +463,23 @@ cat > public/index.html << 'EOF'
                     </div>
                 </div>
             </div>
+            <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-orange-100 text-orange-600">
+                        <i class="fas fa-server text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <div class="text-2xl font-bold text-gray-800" id="proxyCount">0</div>
+                        <div class="text-gray-600">Available Proxies</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Main Content -->
     <div class="container mx-auto px-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Create Account Form -->
             <div class="lg:col-span-1">
                 <div class="bg-white rounded-lg shadow-md p-6">
@@ -375,12 +495,10 @@ cat > public/index.html << 'EOF'
                                 placeholder="Enter account name">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Account Type</label>
-                            <select id="accountType" required
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Proxy</label>
+                            <select id="proxySelect" required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Select type</option>
-                                <option value="vless">VLESS</option>
-                                <option value="trojan">Trojan</option>
+                                <option value="">Loading proxies...</option>
                             </select>
                         </div>
                         <button type="submit"
@@ -419,7 +537,7 @@ cat > public/index.html << 'EOF'
             </div>
 
             <!-- Accounts List -->
-            <div class="lg:col-span-2">
+            <div class="lg:col-span-1">
                 <div class="bg-white rounded-lg shadow-md">
                     <div class="p-6 border-b border-gray-200">
                         <h2 class="text-xl font-bold text-gray-800">
@@ -439,6 +557,27 @@ cat > public/index.html << 'EOF'
                 </div>
             </div>
         </div>
+
+        <!-- Proxy List -->
+        <div class="mt-8">
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800">
+                        <i class="fas fa-server text-orange-600 mr-2"></i>
+                        Available Proxies
+                    </h2>
+                    <p class="text-gray-600 mt-1">Select a proxy to create an account</p>
+                </div>
+                <div class="p-6">
+                    <div id="proxyList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                            <p>Loading proxies...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Toast Notification -->
@@ -451,6 +590,7 @@ cat > public/index.html << 'EOF'
 
     <script>
         let accounts = [];
+        let proxies = [];
         const domain = window.location.hostname;
 
         // Update domain display
@@ -471,6 +611,24 @@ cat > public/index.html << 'EOF'
             setTimeout(() => {
                 toast.classList.add('translate-x-full');
             }, 3000);
+        }
+
+        // Load proxies
+        async function loadProxies() {
+            try {
+                const response = await fetch('/api/v1/proxies');
+                const data = await response.json();
+                
+                if (data.success) {
+                    proxies = data.data;
+                    updateProxyStats();
+                    renderProxySelect();
+                    renderProxyList();
+                }
+            } catch (error) {
+                console.error('Error loading proxies:', error);
+                showToast('Error loading proxies', 'error');
+            }
         }
 
         // Load accounts
@@ -496,6 +654,66 @@ cat > public/index.html << 'EOF'
             document.getElementById('trojanCount').textContent = accounts.filter(a => a.type === 'trojan').length;
         }
 
+        function updateProxyStats() {
+            document.getElementById('proxyCount').textContent = proxies.length;
+        }
+
+        // Render proxy select dropdown
+        function renderProxySelect() {
+            const select = document.getElementById('proxySelect');
+            select.innerHTML = '<option value="">Select a proxy</option>';
+            
+            proxies.forEach(proxy => {
+                const option = document.createElement('option');
+                option.value = proxy.id;
+                option.textContent = `${proxy.name} (${proxy.type})`;
+                select.appendChild(option);
+            });
+        }
+
+        // Render proxy list
+        function renderProxyList() {
+            const proxyList = document.getElementById('proxyList');
+            
+            if (proxies.length === 0) {
+                proxyList.innerHTML = `
+                    <div class="text-center text-gray-500 py-8 col-span-full">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                        <p>No proxies available</p>
+                        <p class="text-sm">Check proxy sources</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            proxyList.innerHTML = proxies.map(proxy => `
+                <div class="proxy-card border border-gray-200 rounded-lg p-4 hover:shadow-md transition duration-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center ${
+                                proxy.type === 'vless' ? 'bg-blue-100 text-blue-600' : 
+                                proxy.type === 'trojan' ? 'bg-green-100 text-green-600' : 
+                                'bg-purple-100 text-purple-600'
+                            }">
+                                <i class="fas ${
+                                    proxy.type === 'vless' ? 'fa-shield-alt' : 
+                                    proxy.type === 'trojan' ? 'fa-lock' : 'fa-server'
+                                }"></i>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="font-semibold text-gray-800">${proxy.name}</h3>
+                                <p class="text-sm text-gray-500 capitalize">${proxy.type}</p>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400">#${proxy.id}</div>
+                    </div>
+                    <div class="bg-gray-50 rounded p-2">
+                        <p class="text-xs text-gray-600 break-all">${proxy.config.substring(0, 50)}...</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         // Render accounts list
         function renderAccounts() {
             const accountsList = document.getElementById('accountsList');
@@ -516,13 +734,19 @@ cat > public/index.html << 'EOF'
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center">
                             <div class="w-10 h-10 rounded-full flex items-center justify-center ${
-                                account.type === 'vless' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                                account.type === 'vless' ? 'bg-blue-100 text-blue-600' : 
+                                account.type === 'trojan' ? 'bg-green-100 text-green-600' : 
+                                'bg-purple-100 text-purple-600'
                             }">
-                                <i class="fas ${account.type === 'vless' ? 'fa-shield-alt' : 'fa-lock'}"></i>
+                                <i class="fas ${
+                                    account.type === 'vless' ? 'fa-shield-alt' : 
+                                    account.type === 'trojan' ? 'fa-lock' : 'fa-server'
+                                }"></i>
                             </div>
                             <div class="ml-3">
                                 <h3 class="font-semibold text-gray-800">${account.name}</h3>
                                 <p class="text-sm text-gray-500 capitalize">${account.type}</p>
+                                ${account.proxyName ? `<p class="text-xs text-gray-400">From: ${account.proxyName}</p>` : ''}
                             </div>
                         </div>
                         <div class="flex space-x-2">
@@ -550,7 +774,7 @@ cat > public/index.html << 'EOF'
             e.preventDefault();
             
             const name = document.getElementById('accountName').value;
-            const type = document.getElementById('accountType').value;
+            const proxyId = document.getElementById('proxySelect').value;
             
             try {
                 const response = await fetch('/api/v1/accounts', {
@@ -558,7 +782,7 @@ cat > public/index.html << 'EOF'
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ name, type })
+                    body: JSON.stringify({ name, proxyId })
                 });
                 
                 const data = await response.json();
@@ -612,7 +836,8 @@ cat > public/index.html << 'EOF'
             }
         }
 
-        // Load accounts on page load
+        // Load data on page load
+        loadProxies();
         loadAccounts();
     </script>
 </body>
@@ -767,9 +992,10 @@ echo -e "   Restart: ${YELLOW}pm2 restart nautica-proxy${NC}"
 echo -e "   Status: ${YELLOW}pm2 status${NC}"
 echo -e "   Stop: ${YELLOW}pm2 stop nautica-proxy${NC}"
 echo ""
-echo -e "${CYAN}✨ Features:${NC}"
+echo -e "${CYAN}✨ New Features:${NC}"
+echo -e "   • Proxy selection from GitHub sources"
+echo -e "   • VLESS, Trojan, Shadowsocks support"
 echo -e "   • Beautiful web dashboard"
-echo -e "   • Create VLESS/Trojan accounts"
 echo -e "   • Account management"
 echo -e "   • Copy configurations"
 echo -e "   • Real-time statistics"
